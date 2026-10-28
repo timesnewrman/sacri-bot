@@ -104,7 +104,7 @@ class Management(commands.Cog):
 
         records = []
         for channel in ctx.guild.channels:
-            if isinstance(channel, discord.CategoryChannel): continue
+            if channel.type == discord.ChannelType.category: continue
 
             if channel.id in entries:
                 records.append((channel.id, entries[channel.id]))
@@ -147,7 +147,7 @@ class Management(commands.Cog):
     @app_commands.command(description='Check channel health')
     async def check(self, inter, channel: app_commands.AppCommandChannel=None):
         channel = channel or inter.channel
-        if isinstance(channel, discord.CategoryChannel):
+        if channel.type == discord.ChannelType.category:
             await inter.response.send_message("This is a category, we don't serve categories", ephemeral=True)
             return
 
@@ -164,7 +164,7 @@ class Management(commands.Cog):
     @app_commands.command(description='Transfer health to target channel, defaults to all health')
     async def transfer(self, inter, target: app_commands.AppCommandChannel, amount: int=(-1), source: app_commands.AppCommandChannel=None):
         source = source or inter.channel
-        if isinstance(target, discord.CategoryChannel) or isinstance(source, discord.CategoryChannel):
+        if discord.ChannelType.category in (target.type, source.type):
             await inter.response.send_message("This is a category, we don't serve categories", ephemeral=True)
             return
 
@@ -203,7 +203,7 @@ class Management(commands.Cog):
     @app_commands.command(description='Transfers channel ownership to someone else')
     async def move(self, inter, new_owner: discord.Member, channel: app_commands.AppCommandChannel=None):
         channel = channel or inter.channel
-        if isinstance(channel, discord.CategoryChannel):
+        if channel.type == discord.ChannelType.category:
             await inter.response.send_message("This is a category, we don't serve categories", ephemeral=True)
             return
         if new_owner == inter.user:
