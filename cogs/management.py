@@ -8,7 +8,7 @@ from math import ceil
 WEEKDAY = 0  # monday
 
 
-class Thing(commands.Cog):
+class Management(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.db: asyncpg.Pool = bot.db
@@ -56,11 +56,6 @@ class Thing(commands.Cog):
         return amount, count
 
 
-    # To-do
-    # - on_channel_creation and on_channel_deletion listeners
-    # - command to transfer channel ownership
-
-
     @tasks.loop(time=datetime.time(
         hour=0,
         tzinfo=datetime.timezone.utc
@@ -101,14 +96,15 @@ class Thing(commands.Cog):
             action=discord.AuditLogAction.channel_create,
             limit=None
         ):
-            if not entry.target or not entry.user: continue
+            if not entry.target or not entry.user or entry.user.bot: continue
             type = getattr(entry.after, 'type', None)
             if not type or type == discord.ChannelType.category: continue
 
             entries[entry.target.id] = entry.user.id
+
         records = []
         for channel in ctx.guild.channels:
-            if isinstance(channel, discord.CategoryChanel): continue
+            if isinstance(channel, discord.CategoryChannel): continue
 
             if channel.id in entries:
                 records.append((channel.id, entries[channel.id]))
@@ -213,6 +209,9 @@ class Thing(commands.Cog):
         if new_owner == inter.user:
             await inter.response.send_message('Transfer to another member, please', ephemeral=True)
             return
+        elif new_owner.bot:
+            await inter.response.send_message("Bots don't count", ephemeral=True)
+            return
 
         owner_id = await self.db.fetchval("""
             SELECT owner
@@ -229,8 +228,8 @@ class Thing(commands.Cog):
             SET owner = $2
             WHERE id = $1;
         """, channel.id, new_owner.id)
-        await inter.response.send_message('Successfully transferred ownership to {new_owner.mention}')
+        await inter.response.send_message(f'Successfully transferred ownership to {new_owner.mention}')
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Thing(bot))
+    await bot.add_cog(Management(bot))
