@@ -161,9 +161,9 @@ class Management(commands.Cog):
         await inter.response.send_message(f'{channel.mention} is at {health} health\nOwned by {owner.mention}')
 
 
-    @app_commands.command(description='Transfer health to target channel, defaults to all health')
-    async def transfer(self, inter, target: app_commands.AppCommandChannel, amount: int=(-1), source: app_commands.AppCommandChannel=None):
-        source = source or inter.channel
+    @app_commands.command(description='Transfer health to target taken from source, defaults to all health to current channel as target')
+    async def transfer(self, inter, source: app_commands.AppCommandChannel, target: app_commands.AppCommandChannel=None, amount: int=(-1)):
+        target = target or inter.channel
         if discord.ChannelType.category in (target.type, source.type):
             await inter.response.send_message("This is a category, we don't serve categories", ephemeral=True)
             return
@@ -173,8 +173,7 @@ class Management(commands.Cog):
                 owner_id, health = await conn.fetchrow("""
                     SELECT owner, health
                     FROM channels
-                    WHERE id = $1
-                    FOR UPDATE;
+                    WHERE id = $1;
                 """, source.id)
                 if owner_id != inter.user.id:
                     await inter.response.send_message("You don't own this channel", ephemeral=True)
@@ -197,7 +196,7 @@ class Management(commands.Cog):
                 """, source.id, amount)
                 async with conn.transaction():
                     await self._handle_channels(conn, 0)
-                    await inter.response.send_message('Successfully transferred health to {target.mention}')
+                    await inter.response.send_message(f'Successfully transferred {amount} health to {target.mention}')
 
 
     @app_commands.command(description='Transfers channel ownership to someone else')
