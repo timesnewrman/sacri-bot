@@ -56,6 +56,32 @@ class Management(commands.Cog):
         return amount, count
 
 
+    # on_guild_channel_create has no channel creator lol
+    @commands.Cog.listener()
+    async def on_audit_log_entry_create(self, entry):
+        if not entry.target or not entry.user: return
+        owner = entry.user_id
+        if entry.user.bot:
+            owner = entry.guild.owner_id
+        if entry.action != discord.AuditLogAction.channel_create: return
+        if getattr(entry.target, 'type', None) == discord.ChannelType.category: return
+
+        print(entry.target.id, owner)
+        await self.db.execute("""
+            INSERT INTO channels (id, owner)
+            VALUES ($1, $2);
+        """, entry.target.id, owner)
+
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        # chance to not delete anything due to bot already deleting it fron _handle_channels
+        await self.db.execute("""
+            DELETE FROM channels
+            WHERE id = $1;
+        """, channel.id)
+
+
     @tasks.loop(time=datetime.time(
         hour=0,
         tzinfo=datetime.timezone.utc
@@ -100,7 +126,7 @@ class Management(commands.Cog):
             type = getattr(entry.after, 'type', None)
             if not type or type == discord.ChannelType.category: continue
 
-            entries[entry.target.id] = entry.user.id
+            entries[entry.target.id] = entry.user_id
 
         records = []
         for channel in ctx.guild.channels:
