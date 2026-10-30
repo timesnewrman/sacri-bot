@@ -4,6 +4,7 @@ from discord.ext import commands, tasks
 import asyncpg
 import datetime
 from math import ceil
+from typing import Optional
 
 WEEKDAY = 0  # monday
 
@@ -98,6 +99,8 @@ class Management(commands.Cog):
                     FOR UPDATE;
                 """)
                 weeks = ceil((today - last).days / 7)
+                if not weeks: return
+
                 updated, removed = await self._handle_channels(conn, weeks)
                 await conn.execute("""
                     UPDATE bot_state
@@ -168,6 +171,35 @@ class Management(commands.Cog):
             async with conn.transaction():
                 updated, removed = await self._handle_channels(conn, weeks)
                 await ctx.reply(f'Updated {updated}, removed {removed} channel(s)')
+
+    #apply commands.Greedy
+    @commands.command(aliases=('add',))
+    async def update(self, ctx, channel: discord.abc.GuildChannel, health: int=1):
+        if channel.type == discord.ChannelType.category:
+            await ctx.reply('no')
+            return
+
+        result = await self.db.execute("""
+            UPDATE channels
+            SET health = health + $2
+            WHERE id = $1
+        """, channel.id, health)
+        if int(result.split()[-1]):
+            if health > 0:
+                await ctx.reply(f'Added {health} health to {channel.mention}')
+            elif health < 0:
+                await ctx.reply(f'Removed {abs(health)} health from {channel.mention}')
+            else:
+                await ctx.reply('what?')
+        else:
+            await ctx.reply(f'channel not found, please do {self.bot.command_prefix}init')
+
+
+    # typing.Optional[]
+    @commands.command(name='owner', aliases=('set',))
+    async def change_owner(self, ctx, channel: discord.abc.GuildChannel, owner: discord.Member):
+        channel = channel or ctx.channel
+        await ctx.reply('wip')
 
 
     @app_commands.command(description='Check channel health')
